@@ -1,0 +1,32 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.37111.16
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OrangMSS", "OrangMSS.csproj", "{FAA5178C-755A-4B53-804D-93A0F0420EBD}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
+		Release|Any CPU = Release|Any CPU
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{FAA5178C-755A-4B53-804D-93A0F0420EBD}.Debug|Any CPU.ActiveCfg = Release|x86
+		{FAA5178C-755A-4B53-804D-93A0F0420EBD}.Debug|x64.ActiveCfg = Release|x86
+		{FAA5178C-755A-4B53-804D-93A0F0420EBD}.Debug|x86.ActiveCfg = Release|x86
+		{FAA5178C-755A-4B53-804D-93A0F0420EBD}.Release|Any CPU.ActiveCfg = Release|x86
+		{FAA5178C-755A-4B53-804D-93A0F0420EBD}.Release|x64.ActiveCfg = Release|x86
+		{FAA5178C-755A-4B53-804D-93A0F0420EBD}.Release|x86.ActiveCfg = Release|x86
+		{FAA5178C-755A-4B53-804D-93A0F0420EBD}.Release|x86.Build.0 = Release|x86
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {A686EA45-91A3-49D9-BF4E-50093EA58A4D}
+	EndGlobalSection
+EndGlobal
