@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System.ComponentModel;
+using System.IO;
 using System.Net.Http;
 using System.Diagnostics;
 using System.Windows;
@@ -55,7 +56,10 @@ namespace OrangMSS
                         Application.Current.Shutdown();
                         return;
                     }
-                    catch { }
+                    catch (Win32Exception)
+                    {
+                        MessageBox.Show("Elevation was cancelled.", "OrangMSS", MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
                 }
                 return;
             }
@@ -65,8 +69,8 @@ namespace OrangMSS
             ProgressBar.Value = 0;
             _cts = new CancellationTokenSource();
             var token = _cts.Token;
-            var temp = Path.Combine(Path.GetTempPath(), "OrangMSS");
-            Directory.CreateDirectory(temp);
+            var dataDir = Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "OrangStudio", "OrangMSS");
+            Directory.CreateDirectory(dataDir);
             var downloads = new (string url, string filename)[]
             {
                 ("https://raw.githubusercontent.com/kkkgo/LTSC-Add-MicrosoftStore/master/Microsoft.XboxIdentityProvider_8wekyb3d8bbwe.xml","Microsoft.XboxIdentityProvider_8wekyb3d8bbwe.xml"),
@@ -92,7 +96,7 @@ namespace OrangMSS
                 {
                     token.ThrowIfCancellationRequested();
                     var (url, filename) = downloads[i];
-                    var dest = Path.Combine(temp, filename);
+                    var dest = Path.Join(dataDir, filename);
                     if (!File.Exists(dest) || new FileInfo(dest).Length == 0)
                     {
                         AppendLog($"Downloading {url} -> {dest}");
@@ -123,7 +127,7 @@ namespace OrangMSS
                 }
                 AppendLog("Installation starting...");
                 ProgressBar.Value = 35;
-                await InstallPackagesAsync(temp, token);
+                await InstallPackagesAsync(dataDir, token);
                 AppendLog("Installation Finished.");
                 ProgressBar.Value = 100;
             }
@@ -131,7 +135,7 @@ namespace OrangMSS
             {
                 AppendLog("Cancelled by user.");
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is HttpRequestException or IOException or UnauthorizedAccessException or InvalidOperationException or Win32Exception)
             {
                 AppendLog("Error: " + ex.Message);
             }
@@ -166,7 +170,10 @@ namespace OrangMSS
                         Application.Current.Shutdown();
                         return;
                     }
-                    catch { }
+                    catch (Win32Exception)
+                    {
+                        MessageBox.Show("Elevation was cancelled.", "OrangMSS", MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
                 }
                 return;
             }
@@ -208,7 +215,7 @@ namespace OrangMSS
             {
                 AppendLog("Cancelled by user.");
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is HttpRequestException or IOException or UnauthorizedAccessException or InvalidOperationException or Win32Exception)
             {
                 AppendLog("Error: " + ex.Message);
             }
@@ -219,33 +226,27 @@ namespace OrangMSS
                 CancelButton.IsEnabled = false;
             }
         }
-        private async Task InstallPackagesAsync(string temp, CancellationToken token)
+        private async Task InstallPackagesAsync(string dataDir, CancellationToken token)
         {
             var arch = Environment.Is64BitOperatingSystem ? "x64" : "x86";
-            var storeBundle = Directory.GetFiles(temp, "*WindowsStore*.AppxBundle").FirstOrDefault();
-            var storeXml = Path.Combine(temp, "Microsoft.WindowsStore_8wekyb3d8bbwe.xml");
+            var storeBundle = Directory.GetFiles(dataDir, "*WindowsStore*.AppxBundle").FirstOrDefault();
+            var storeXml = Path.Join(dataDir, "Microsoft.WindowsStore_8wekyb3d8bbwe.xml");
             if (storeBundle == null || !File.Exists(storeXml))
             {
-                throw new Exception("Required Store files are missing.");
+                throw new InvalidOperationException("Required Store files are missing.");
             }
-            var fX64 = Directory.GetFiles(temp, "*Framework*").FirstOrDefault(f => f.Contains("x64", StringComparison.OrdinalIgnoreCase));
-            var fX86 = Directory.GetFiles(temp, "*Framework*").FirstOrDefault(f => f.Contains("x86", StringComparison.OrdinalIgnoreCase));
-            var rX64 = Directory.GetFiles(temp, "*Runtime*").FirstOrDefault(f => f.Contains("x64", StringComparison.OrdinalIgnoreCase));
-            var rX86 = Directory.GetFiles(temp, "*Runtime*").FirstOrDefault(f => f.Contains("x86", StringComparison.OrdinalIgnoreCase));
-            var vX64 = Directory.GetFiles(temp, "*VCLibs*").FirstOrDefault(f => f.Contains("x64", StringComparison.OrdinalIgnoreCase));
-            var vX86 = Directory.GetFiles(temp, "*VCLibs*").FirstOrDefault(f => f.Contains("x86", StringComparison.OrdinalIgnoreCase));
-            string?[] dependencies;
-            if (arch == "x64")
-            {
-                dependencies = [vX64, vX86, fX64, fX86, rX64, rX86];
-            }
-            else
-            {
-                dependencies = [vX86, fX86, rX86];
-            }
+            var fX64 = Directory.GetFiles(dataDir, "*Framework*").FirstOrDefault(f => f.Contains("x64", StringComparison.OrdinalIgnoreCase));
+            var fX86 = Directory.GetFiles(dataDir, "*Framework*").FirstOrDefault(f => f.Contains("x86", StringComparison.OrdinalIgnoreCase));
+            var rX64 = Directory.GetFiles(dataDir, "*Runtime*").FirstOrDefault(f => f.Contains("x64", StringComparison.OrdinalIgnoreCase));
+            var rX86 = Directory.GetFiles(dataDir, "*Runtime*").FirstOrDefault(f => f.Contains("x86", StringComparison.OrdinalIgnoreCase));
+            var vX64 = Directory.GetFiles(dataDir, "*VCLibs*").FirstOrDefault(f => f.Contains("x64", StringComparison.OrdinalIgnoreCase));
+            var vX86 = Directory.GetFiles(dataDir, "*VCLibs*").FirstOrDefault(f => f.Contains("x86", StringComparison.OrdinalIgnoreCase));
+            string?[] dependencies = arch == "x64"
+                ? [vX64, vX86, fX64, fX86, rX64, rX86]
+                : [vX86, fX86, rX86];
             if (dependencies.Any(d => d == null))
             {
-                throw new Exception("Some dependencies are missing.");
+                throw new InvalidOperationException("Some dependencies are missing.");
             }
             var nonNullDeps = dependencies.Select(d => d!).ToArray();
             var depString = string.Join("','", nonNullDeps);
@@ -255,8 +256,8 @@ namespace OrangMSS
             await RunPowerShellAsync($"Add-AppxProvisionedPackage -Online -PackagePath '{storeBundle}' -DependencyPackagePath '{depString}' -LicensePath '{storeXml}'", token);
             await RunPowerShellAsync($"Add-AppxPackage -Path '{storeBundle}'", token);
             ProgressBar.Value = 55;
-            var pbApp = Directory.GetFiles(temp, "*StorePurchaseApp*.AppxBundle").FirstOrDefault();
-            var pbXml = Path.Combine(temp, "Microsoft.StorePurchaseApp_8wekyb3d8bbwe.xml");
+            var pbApp = Directory.GetFiles(dataDir, "*StorePurchaseApp*.AppxBundle").FirstOrDefault();
+            var pbXml = Path.Join(dataDir, "Microsoft.StorePurchaseApp_8wekyb3d8bbwe.xml");
             if (pbApp != null && File.Exists(pbXml))
             {
                 AppendLog("Installing Store Purchase App...");
@@ -264,8 +265,8 @@ namespace OrangMSS
                 await RunPowerShellAsync($"Add-AppxPackage -Path '{pbApp}'", token);
             }
             ProgressBar.Value = 75;
-            var installerApp = Directory.GetFiles(temp, "*DesktopAppInstaller*.AppxBundle").FirstOrDefault();
-            var installerXml = Path.Combine(temp, "Microsoft.DesktopAppInstaller_8wekyb3d8bbwe.xml");
+            var installerApp = Directory.GetFiles(dataDir, "*DesktopAppInstaller*.AppxBundle").FirstOrDefault();
+            var installerXml = Path.Join(dataDir, "Microsoft.DesktopAppInstaller_8wekyb3d8bbwe.xml");
             if (installerApp != null && File.Exists(installerXml))
             {
                 AppendLog("Installing App Installer...");
@@ -274,8 +275,8 @@ namespace OrangMSS
                 await RunPowerShellAsync($"Add-AppxPackage -Path '{installerApp}'", token);
             }
             ProgressBar.Value = 90;
-            var xboxApp = Directory.GetFiles(temp, "*XboxIdentityProvider*.AppxBundle").FirstOrDefault();
-            var xboxXml = Path.Combine(temp, "Microsoft.XboxIdentityProvider_8wekyb3d8bbwe.xml");
+            var xboxApp = Directory.GetFiles(dataDir, "*XboxIdentityProvider*.AppxBundle").FirstOrDefault();
+            var xboxXml = Path.Join(dataDir, "Microsoft.XboxIdentityProvider_8wekyb3d8bbwe.xml");
             if (xboxApp != null && File.Exists(xboxXml))
             {
                 AppendLog("Installing Xbox Identity Provider...");
@@ -297,9 +298,16 @@ namespace OrangMSS
             proc.OutputDataReceived += (s, e) => { if (!string.IsNullOrEmpty(e.Data)) AppendLog(e.Data); };
             proc.ErrorDataReceived += (s, e) => { if (!string.IsNullOrEmpty(e.Data)) AppendLog("ERR: " + e.Data); };
             proc.Exited += (s, e) => tcs.TrySetResult(true);
-            using var reg = token.Register(() => 
+            using var reg = token.Register(() =>
             {
-                try { proc.Kill(); } catch { }
+                try
+                {
+                    if (!proc.HasExited) proc.Kill();
+                }
+                catch (Exception ex) when (ex is InvalidOperationException or Win32Exception)
+                {
+                    AppendLog("Could not stop PowerShell: " + ex.Message);
+                }
                 tcs.TrySetCanceled();
             });
             proc.Start();
